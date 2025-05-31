@@ -1,0 +1,39 @@
+{
+    "name": "conjugate.ts",
+    "version": "0.1.0",
+    "description": "A TypeScript utility for structured, reusable, and type-safe multiple class inheritance.",
+    "type": "module",
+    "main": "dist/conjugate.min.js",
+    "types": "dist/conjugate.d.ts",
+    "scripts": {
+        "build:compile": "tsc",
+        "build:types": "tsc --project tsconfig.d.json",
+        "build:minify": "node esbuild.config.mjs",
+        "build": "npm run build:types && npm run build:minify",
+        "test": "vitest run",
+        "prepare": "npm run build"
+    },
+    "keywords": [
+        "typescript",
+        "multiple-inheritance",
+        "mixin",
+        "utility",
+        "composition"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/dbavisi/conjugate.ts.git"
+    },
+    "author": "Dwij Bavisi <dwij@dbavisi.net>",
+    "devDependencies": {
+        "@types/node": "^22.15.21",
+        "typescript": "^5.8.3",
+        "vitest": "^1.4.0",
+        "esbuild": "^0.21.0"
+    },
+    "files": [
+        "readMe.md",
+        "dist/",
+        "doc/"
+    ]
+}

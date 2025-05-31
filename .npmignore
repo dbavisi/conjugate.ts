@@ -1,0 +1,13 @@
+src/
+test/
+tsconfig.json
+tsconfig.d.json
+esbuild.config.mjs
+
+*.tsbuildinfo
+package-lock.json
+node_modules/
+
+.gitignore
+.git/
+.github/

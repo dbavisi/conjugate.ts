@@ -1,0 +1,7 @@
+*.js
+*.d.ts
+*.tsbuildinfo
+dist/
+
+package-lock.json
+node_modules/
