@@ -41,7 +41,6 @@ type IResolve<C extends unknown[]> =
         ) : never
     ) : null;
 
-
 /**
  * Interface for the conjugated class, for future extensibility.
  */

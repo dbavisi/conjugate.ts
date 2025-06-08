@@ -6,7 +6,7 @@
         "declarationMap": false,
         "noEmit": false,
         "composite": true,
-        "declarationDir": "dist",
+        "outFile": "dist/conjugate.d.ts",
         "rootDir": "src"
     },
     "include": [

@@ -1,6 +1,6 @@
 {
     "name": "conjugate.ts",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "A TypeScript utility for structured, reusable, and type-safe multiple class inheritance.",
     "type": "module",
     "main": "dist/conjugate.min.js",
