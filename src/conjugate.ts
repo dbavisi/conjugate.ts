@@ -80,7 +80,9 @@ function Conjugate<
 
             // Instantiate base and mixins, save their instances for later use.
             const base = Reflect.construct(Base, argsBase, self.constructor);
-            const mixins = Mixins.map(function (Mixin, index) {
+            const mixins: {
+                [K in keyof CMixins]: CMixins[K] extends IClass<infer T> ? T : never
+            } = Mixins.map(function <T extends unknown>(Mixin: IClass<T>, index: number): T {
                 return Reflect.construct(Mixin, argsMixins[index], self.constructor);
             });
 
@@ -128,17 +130,17 @@ function Conjugate<
                 get(target, prop, receiver) {
                     if (Reflect.has(target, prop)) {
                         const value = Reflect.get(target, prop, receiver);
-                        return _bounded(value, receiver);
+                        return _bounded(value, target);
                     }
                     for (let i = mixins.length - 1; i >= 0; i -= 1) {
                         if (Reflect.has(mixins[i], prop)) {
                             const value = Reflect.get(mixins[i], prop, receiver);
-                            return _bounded(value, receiver);
+                            return _bounded(value, mixins[i]);
                         }
                     }
                     if (Reflect.has(base, prop)) {
                         const value = Reflect.get(base, prop, receiver);
-                        return _bounded(value, receiver);
+                        return _bounded(value, base);
                     }
                     if (Reflect.has(Base.prototype, prop)) {
                         const value = Reflect.get(Base.prototype, prop, receiver);
@@ -164,7 +166,7 @@ function Conjugate<
                     ** - Or we can allow it to be set on the prototype.
                     ** - Or we can allow it to be set on the target object.
                     */
-                    mroCache.set(prop, self);
+                    mroCache.set(prop, target);
                     return Reflect.set(target, prop, value, receiver);
                 },
                 ownKeys(target) {
