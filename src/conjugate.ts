@@ -80,9 +80,7 @@ function Conjugate<
 
             // Instantiate base and mixins, save their instances for later use.
             const base = Reflect.construct(Base, argsBase, self.constructor);
-            const mixins: {
-                [K in keyof CMixins]: CMixins[K] extends IClass<infer T> ? T : never
-            } = Mixins.map(function <T extends unknown>(Mixin: IClass<T>, index: number): T {
+            const mixins = Mixins.map(function (Mixin, index) {
                 return Reflect.construct(Mixin, argsMixins[index], self.constructor);
             });
 
