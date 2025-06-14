@@ -13,6 +13,24 @@ import {
  */
 class ConjugateBase implements IConjugateBase {
     /**
+     * Generic typed version of Reflect.has for objects.
+     * @param target - The object to check for the property.
+     * @param key - The property key to check.
+     * @template T - The type of the target object.
+     * @template K - The key of the property to check.
+     * @return True if the property exists, false otherwise.
+     */
+    static has<
+        T extends unknown,
+        K extends PropertyKey,
+    >(target: T, key: K): K extends keyof T ? true : false {
+        if (!ConjugateBase.isObject(target)) {
+            throw new TypeError('Target must be a non-null object.');
+        }
+        return Reflect.has(target, key) as K extends keyof T ? true : false;
+    }
+
+    /**
      * Generic typed version of Reflect.get for objects.
      * @param target - The object to get the property from.
      * @param key - The property key.
@@ -23,12 +41,12 @@ class ConjugateBase implements IConjugateBase {
      * @return The value of the property, strictly typed.
      */
     static get<
-        T extends object,
+        T extends unknown,
         K extends string | symbol,
-        R extends object,
-    >(target: T, key: K, receiver?: R): K extends keyof T ? T[K] : never {
-        if (typeof target !== 'object' || target === null) {
-            throw new TypeError('Target must be an object.');
+        R extends unknown,
+    >(target: T, key: K, receiver: R): K extends keyof T ? T[K] : never {
+        if (!ConjugateBase.isObject(target)) {
+            throw new TypeError('Target must be a non-null object.');
         }
         return Reflect.get(target, key, receiver) as K extends keyof T ? T[K] : never
     }
@@ -48,31 +66,13 @@ class ConjugateBase implements IConjugateBase {
     static set<
         T extends unknown,
         K extends string | symbol,
-        V extends (K extends keyof T ? T[K] : unknown),
-        R extends object,
-    >(target: T, key: K, value: V, receiver?: R): boolean {
-        if (typeof target !== 'object' || target === null) {
-            throw new TypeError('Target must be an object.');
+        V extends unknown,
+        R extends unknown,
+    >(target: T, key: K, value: V, receiver: R): boolean {
+        if (!ConjugateBase.isObject(target)) {
+            throw new TypeError('Target must be a non-null object.');
         }
         return Reflect.set(target, key, value, receiver);
-    }
-
-    /**
-     * Generic typed version of Reflect.has for objects.
-     * @param target - The object to check for the property.
-     * @param key - The property key to check.
-     * @template T - The type of the target object.
-     * @template K - The key of the property to check.
-     * @return True if the property exists, false otherwise.
-     */
-    static has<
-        T extends object,
-        K extends PropertyKey,
-    >(target: T, key: K): K extends keyof T ? true : false {
-        if (typeof target !== 'object' || target === null) {
-            throw new TypeError('Target must be an object.');
-        }
-        return Reflect.has(target, key) as K extends keyof T ? true : false;
     }
 
     /**
@@ -84,8 +84,8 @@ class ConjugateBase implements IConjugateBase {
     static ownKeys<
         T extends unknown,
     >(target: T): (keyof T & (string | symbol))[] {
-        if (typeof target !== 'object' || target === null) {
-            throw new TypeError('Target must be an object.');
+        if (!ConjugateBase.isObject(target)) {
+            throw new TypeError('Target must be a non-null object.');
         }
         return Reflect.ownKeys(target) as (keyof T & (string | symbol))[];
     }
@@ -118,9 +118,22 @@ class ConjugateBase implements IConjugateBase {
      */
     static bounded<
         V extends unknown,
-        T extends object,
+        T extends unknown,
     >(value: V, instance: T): V {
+        if (!ConjugateBase.isObject(instance)) {
+            throw new TypeError('Instance must be a non-null object.');
+        }
         return (typeof value === 'function') ? value.bind(instance) : value;
+    }
+
+    /**
+     * Helper to check if a value is a non-null object, with generic typing.
+     * @template T - The expected object type.
+     * @param val - The value to check.
+     * @returns True if val is a non-null object of type T, false otherwise.
+     */
+    static isObject<T extends object>(val: unknown): val is T {
+        return typeof val === 'object' && val !== null;
     }
 }
 

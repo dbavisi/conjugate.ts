@@ -53,9 +53,20 @@ type IResolve<C extends unknown[]> =
  */
 interface IConjugateBase { }
 
+
+/**
+ * Enum for property operation types in proxy traps.
+ */
+const enum OpType {
+    Has = 'has',
+    Get = 'get',
+    Set = 'set',
+}
+
 export {
     IClass,
     IMix,
     IResolve,
     IConjugateBase,
+    OpType,
 };

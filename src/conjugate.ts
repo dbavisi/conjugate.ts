@@ -7,6 +7,7 @@ import {
     IClass,
     IResolve,
     IConjugateBase,
+    OpType,
 } from './typing.js';
 import { ConjugateBase } from './base.js';
 
@@ -51,77 +52,184 @@ function Conjugate<
                 }
             );
 
+            // Helper to resolve property across self, mixins, base, and prototypes
+            // Overload signatures for resolveProperty
+
+            function resolveProperty<
+                THas extends boolean,
+                TProp extends string | symbol,
+            >(op: OpType.Has, prop: TProp, receiver: undefined, value: undefined): THas;
+            function resolveProperty<
+                TGet extends unknown,
+                TProp extends string | symbol,
+                R extends unknown,
+            >(op: OpType.Get, prop: TProp, receiver: R, value: undefined): TGet | undefined;
+            function resolveProperty<
+                TSet extends unknown,
+                TProp extends string | symbol,
+                R extends unknown,
+            >(op: OpType.Set, prop: TProp, receiver: R, value: TSet): boolean;
+            /**
+             * Resolve a property on the conjugated instance.
+             * @param op - The operation type (OpType.Get, OpType.Set, OpType.Has).
+             * @param prop - The property key to resolve.
+             * @param receiver - Optional receiver for getter/setter context.
+             * @param value - The value to set if the operation is OpType.Set.
+             * @template THas - The type of the boolean for has operation.
+             * @template TGet - The type of the value to get.
+             * @template TSet - The type of the value to set.
+             * @template TProp - The type of the property key.
+             * @template R - The type of the receiver object.
+             * @returns The resolved value or boolean indicating presence.
+             */
+            function resolveProperty<
+                THas extends boolean,
+                TGet extends unknown,
+                TSet extends unknown,
+                TProp extends string | symbol,
+                R extends unknown,
+            >(
+                op: OpType,
+                prop: TProp,
+                receiver: R,
+                value: TSet
+            ) {
+                // Overload checks
+                switch (op) {
+                    case OpType.Has: {
+                        if (typeof prop !== 'string' && typeof prop !== 'symbol') {
+                            throw new TypeError('Property key must be a string or symbol.');
+                        }
+                        break;
+                    }
+                    case OpType.Get: {
+                        if (typeof prop !== 'string' && typeof prop !== 'symbol') {
+                            throw new TypeError('Property key must be a string or symbol.');
+                        }
+                        if (receiver === undefined) {
+                            throw new TypeError('Receiver must be provided for get operation.');
+                        }
+                        break;
+                    }
+                    case OpType.Set: {
+                        if (typeof prop !== 'string' && typeof prop !== 'symbol') {
+                            throw new TypeError('Property key must be a string or symbol.');
+                        }
+                        if (receiver === undefined) {
+                            throw new TypeError('Receiver must be provided for set operation.');
+                        }
+                        if (value === undefined) {
+                            throw new TypeError('Value must be provided for set operation.');
+                        }
+                        break;
+                    }
+                }
+
+                // 1. self
+                if (ConjugateBase.isObject(self) && self.hasOwnProperty(prop)) {
+                    switch (op) {
+                        case OpType.Has:
+                            return true as THas;
+                        case OpType.Get: {
+                            const v = ConjugateBase.get(self, prop, receiver);
+                            return ConjugateBase.bounded(v, receiver) as TGet;
+                        }
+                        case OpType.Set:
+                            return ConjugateBase.set(self, prop, value, receiver);
+                    }
+                }
+
+                // 2. mixin instances (reverse order)
+                for (let i = mixins.length - 1; i >= 0; i -= 1) {
+                    const mixin = mixins[i];
+                    if (ConjugateBase.isObject(mixin) && mixin.hasOwnProperty(prop)) {
+                        switch (op) {
+                            case OpType.Has:
+                                return true as THas;
+                            case OpType.Get: {
+                                const v = ConjugateBase.get(mixin, prop, receiver);
+                                return ConjugateBase.bounded(v, receiver) as TGet;
+                            }
+                            case OpType.Set:
+                                return ConjugateBase.set(mixin, prop, value, receiver);
+                        }
+                    }
+                }
+
+                // 3. base instance
+                if (ConjugateBase.isObject(base) && base.hasOwnProperty(prop)) {
+                    switch (op) {
+                        case OpType.Has:
+                            return true as THas;
+                        case OpType.Get: {
+                            const v = ConjugateBase.get(base, prop, receiver);
+                            return ConjugateBase.bounded(v, receiver) as TGet;
+                        }
+                        case OpType.Set:
+                            return ConjugateBase.set(base, prop, value, receiver);
+                    }
+                }
+
+                // 4. Base.prototype
+                if (ConjugateBase.has(Base.prototype, prop)) {
+                    switch (op) {
+                        case OpType.Has:
+                            return true as THas;
+                        case OpType.Get: {
+                            const v = ConjugateBase.get(Base.prototype, prop, receiver);
+                            return ConjugateBase.bounded(v, receiver) as TGet;
+                        }
+                        // case OpType.Set:
+                        // Should we allow altering prototype properties?
+                    }
+                }
+
+                // 5. Mixins.prototype
+                for (let i = 0; i < Mixins.length; i += 1) {
+                    const Mixin = Mixins[i];
+                    if (ConjugateBase.has(Mixin.prototype, prop)) {
+                        switch (op) {
+                            case OpType.Has:
+                                return true as THas;
+                            case OpType.Get: {
+                                const v = ConjugateBase.get(Mixin.prototype, prop, receiver);
+                                return ConjugateBase.bounded(v, receiver) as TGet;
+                            }
+                            // case OpType.Set:
+                            // Should we allow altering prototype properties?
+                        }
+                    }
+                }
+
+                // Not found
+                switch (op) {
+                    case OpType.Has:
+                        return false as THas;
+                    case OpType.Get:
+                        return undefined;
+                    case OpType.Set: {
+                        /*
+                        ** Design decision: If the property is not found,
+                        ** - We can choose to throw an error,
+                        ** - Or we ignore the set operation.
+                        ** - Or we can allow it to be set on the prototype.
+                        ** - Or we can allow it to be set on the target object.
+                        */
+                        return ConjugateBase.set(self, prop, value, receiver);
+                    }
+                }
+            }
+
             // Proxy for deterministic property/method resolution.
             return new Proxy(self, {
                 has(target, prop) {
-                    if (self.hasOwnProperty(prop)) return true;
-                    for (let i = mixins.length - 1; i >= 0; i -= 1) {
-                        const mixin = mixins[i];
-                        if (typeof mixin === 'object' && mixin !== null)
-                            if (mixin.hasOwnProperty(prop)) return true;
-                    }
-                    if (typeof base === 'object' && base !== null)
-                        if (base.hasOwnProperty(prop)) return true;
-                    if (ConjugateBase.has(Base.prototype, prop)) return true;
-                    for (let i = 0; i < Mixins.length; i += 1) {
-                        if (ConjugateBase.has(Mixins[i].prototype, prop)) return true;
-                    }
-                    return false;
+                    return resolveProperty(OpType.Has, prop, undefined, undefined);
                 },
                 get(target, prop, receiver) {
-                    if (self.hasOwnProperty(prop)) {
-                        const value = ConjugateBase.get(self, prop, receiver);
-                        return ConjugateBase.bounded(value, receiver);
-                    }
-                    for (let i = mixins.length - 1; i >= 0; i -= 1) {
-                        const mixin = mixins[i];
-                        if (typeof mixin === 'object' && mixin !== null)
-                            if (mixin.hasOwnProperty(prop)) {
-                                const value = ConjugateBase.get(mixin, prop, receiver);
-                                return ConjugateBase.bounded(value, receiver);
-                            }
-                    }
-                    if (typeof base === 'object' && base !== null)
-                        if (base.hasOwnProperty(prop)) {
-                            const value = ConjugateBase.get(base, prop, receiver);
-                            return ConjugateBase.bounded(value, receiver);
-                        }
-                    if (ConjugateBase.has(Base.prototype, prop)) {
-                        const value = ConjugateBase.get(Base.prototype, prop, receiver);
-                        return ConjugateBase.bounded(value, receiver);
-                    }
-                    for (let i = 0; i < Mixins.length; i += 1) {
-                        const Mixin = Mixins[i];
-                        if (ConjugateBase.has(Mixin.prototype, prop)) {
-                            const value = ConjugateBase.get(Mixin.prototype, prop, receiver);
-                            return ConjugateBase.bounded(value, receiver);
-                        }
-                    }
-                    return undefined;
+                    return resolveProperty(OpType.Get, prop, receiver, undefined);
                 },
                 set(target, prop, value, receiver) {
-                    if (self.hasOwnProperty(prop)) {
-                        return ConjugateBase.set(self, prop, value, receiver);
-                    }
-                    for (let i = mixins.length - 1; i >= 0; i -= 1) {
-                        const mixin = mixins[i];
-                        if (typeof mixin === 'object' && mixin !== null)
-                            if (mixin.hasOwnProperty(prop)) {
-                                return ConjugateBase.set(mixin, prop, value, receiver);
-                            }
-                    }
-                    if (typeof base === 'object' && base !== null)
-                        if (base.hasOwnProperty(prop)) {
-                            return ConjugateBase.set(base, prop, value, receiver);
-                        }
-                    /*
-                    ** Design decision: If the property is not found,
-                    ** - We can choose to throw an error,
-                    ** - Or we ignore the set operation.
-                    ** - Or we can allow it to be set on the prototype.
-                    ** - Or we can allow it to be set on the target object.
-                    */
-                    return ConjugateBase.set(self, prop, value, receiver);
+                    return resolveProperty(OpType.Set, prop, receiver, value);
                 },
                 ownKeys(target) {
                     const keys = new Set<string | symbol>();
