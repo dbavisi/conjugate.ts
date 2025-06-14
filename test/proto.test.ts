@@ -34,4 +34,30 @@ describe('Dynamic Prototype Validation', () => {
         // @ts-expect-error
         expect(instance.lateMethod()).toBe('late');
     });
+
+    test('Should be able to instantiate EventTarget with mixins', () => {
+        class Base extends EventTarget { baseMethod() { return 'base'; } }
+        class Mixin { mixinMethod() { return 'mixin'; } }
+        const A = C(Base, Mixin);
+        const instance = new A([], []);
+
+        expect(instance.baseMethod()).toBe('base');
+        expect(instance.mixinMethod()).toBe('mixin');
+
+        // Dynamically add method to Mixin prototype
+        (Mixin.prototype as any).dynamicMethod = function () { return 'dynamic'; };
+        expect(instance.dynamicMethod()).toBe('dynamic');
+
+        // Try add event listener
+        const future = new Promise<void>((resolve) => {
+            instance.addEventListener('test-event', () => {
+                resolve('event received');
+            });
+            instance.dispatchEvent(new Event('test-event'));
+        });
+
+        return future.then((result) => {
+            expect(result).toBe('event received');
+        });
+    });
 });

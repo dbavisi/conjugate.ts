@@ -2,14 +2,6 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "emitDeclarationOnly": true,
-        "declaration": true,
-        "declarationMap": false,
-        "noEmit": false,
-        "composite": true,
-        "outFile": "dist/conjugate.d.ts",
-        "rootDir": "src"
+        "outDir": "dist/",
     },
-    "include": [
-        "src/**/*"
-    ]
 }

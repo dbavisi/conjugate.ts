@@ -16,7 +16,8 @@ build({
     platform: 'neutral', // Ensures compatibility with both node and browser
     format: 'esm',       // Output as ES6 module
     target: ['esnext'],  // Latest JS runtimes
-    sourcemap: false,
-    external: [],
+
+    // Enable source maps for diagnostics
+    sourcemap: true,
     logLevel: 'info',
 }).catch(() => process.exit(1));

@@ -5,6 +5,8 @@
 
 /**
  * Generic class constructor interface.
+ * @template T - The type of the instance created by the class.
+ * @template IArgs - The types of the constructor arguments.
  */
 interface IClass<
     T extends unknown,
@@ -14,14 +16,9 @@ interface IClass<
 }
 
 /**
- * Tuple of class constructors for mixins.
- */
-type IMixins<T extends unknown[]> = {
-    [K in keyof T]: IClass<T[K]>;
-}
-
-/**
  * Merge two types, preferring properties from A over B.
+ * @template A - The first type.
+ * @template B - The second type.
  */
 type IMix<A extends unknown, B extends unknown> = {
     [K in keyof (A & B)]: K extends keyof A ? A[K] : (
@@ -30,13 +27,23 @@ type IMix<A extends unknown, B extends unknown> = {
 }
 
 /**
+ * Recursively expand a type to resolve nested structures.
+ * This is useful for type hints during development and debugging.
+ * @template T - The type to expand.
+ */
+type IExpand<T> = T extends infer O ? {
+    [K in keyof O]: IExpand<O[K]>;
+} : never;
+
+/**
  * Recursively resolve the combined instance type for a tuple of classes.
+ * @template C - The tuple of classes.
  */
 type IResolve<C extends unknown[]> =
     C extends [infer CBase, ...infer CRest] ? (
         CBase extends IClass<infer Base> ? (
             CRest extends [infer _CSecond, ...infer _CRest] ? (
-                IMix<Base, IResolve<CRest>>
+                IExpand<IMix<Base, IResolve<CRest>>>
             ) : Base
         ) : never
     ) : null;
@@ -48,7 +55,6 @@ interface IConjugateBase { }
 
 export {
     IClass,
-    IMixins,
     IMix,
     IResolve,
     IConjugateBase,
