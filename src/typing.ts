@@ -53,7 +53,6 @@ type IResolve<C extends unknown[]> =
  */
 interface IConjugateBase { }
 
-
 /**
  * Enum for property operation types in proxy traps.
  */
