@@ -1,6 +1,7 @@
 *.js
 *.d.ts
 *.tsbuildinfo
+build/
 dist/
 
 package-lock.json

@@ -4,6 +4,8 @@ tsconfig.json
 tsconfig.d.json
 esbuild.config.mjs
 
+build/
+
 *.tsbuildinfo
 package-lock.json
 node_modules/

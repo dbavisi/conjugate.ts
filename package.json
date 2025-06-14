@@ -1,6 +1,6 @@
 {
     "name": "conjugate.ts",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "A TypeScript utility for structured, reusable, and type-safe multiple class inheritance.",
     "type": "module",
     "main": "dist/conjugate.min.js",
@@ -8,9 +8,9 @@
     "scripts": {
         "build:compile": "tsc",
         "build:types": "tsc --project tsconfig.d.json",
-        "build:minify": "node esbuild.config.mjs",
-        "build": "npm run build:types && npm run build:minify",
-        "test": "vitest run",
+        "build:esbuild": "node esbuild.config.mjs",
+        "build": "npm run build:types && npm run build:esbuild",
+        "test": "vitest run --logHeapUsage --typecheck --reporter=verbose",
         "prepare": "npm run build"
     },
     "keywords": [
