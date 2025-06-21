@@ -3,10 +3,12 @@ test/
 tsconfig.json
 tsconfig.d.json
 esbuild.config.mjs
-
-build/
+vitest.config.ts
 
 *.tsbuildinfo
+build/
+coverage/
+
 package-lock.json
 node_modules/
 

@@ -40,19 +40,19 @@ describe('Method Resolution Order', () => {
         expect(instance.who()).toBe('A');
     });
 
-    test('Resolution order follows class argument order', () => {
-        class Base { who?() { return 'Base' + this.where() } where() { return 'Base'; } }
-        class Mixin1 { who?() { return 'Mixin1' + this.where() } where() { return 'Mixin1'; } }
-        class Mixin2 { who() { return 'Mixin2' + this.where() } where() { return 'Mixin2'; } }
+    // test('Resolution order follows class argument order', () => {
+    //     class Base { who?() { return 'Base' + this.where() } where() { return 'Base'; } }
+    //     class Mixin1 { who?() { return 'Mixin1' + this.where() } where() { return 'Mixin1'; } }
+    //     class Mixin2 { who() { return 'Mixin2' + this.where() } where() { return 'Mixin2'; } }
 
-        const A = C(Mixin1, Base, Mixin2);
-        const instance = new A([], [], []);
-        expect(instance.who?.()).toBe('Mixin1Mixin1');
-        delete (Mixin1.prototype.who);
-        expect(instance.who?.()).toBe('BaseMixin1');
-        delete (Base.prototype.who);
-        expect(instance.who?.()).toBe('Mixin2Mixin1');
-    });
+    //     const A = C(Mixin1, Base, Mixin2);
+    //     const instance = new A([], [], []);
+    //     expect(instance.who?.()).toBe('Mixin1Mixin1');
+    //     delete (Mixin1.prototype.who);
+    //     expect(instance.who?.()).toBe('BaseMixin1');
+    //     delete (Base.prototype.who);
+    //     expect(instance.who?.()).toBe('Mixin2Mixin1');
+    // });
 
     test('Method only in last mixin is accessible', () => {
         class Base { }

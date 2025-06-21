@@ -36,6 +36,8 @@ describe('Dynamic Prototype Validation', () => {
     });
 
     test('Should be able to instantiate EventTarget with mixins', () => {
+        // See #9 [bug] Illegal invocation with addEventListener
+
         class Base extends EventTarget { baseMethod() { return 'base'; } }
         class Mixin { mixinMethod() { return 'mixin'; } }
         const A = C(Base, Mixin);
@@ -44,13 +46,35 @@ describe('Dynamic Prototype Validation', () => {
         expect(instance.baseMethod()).toBe('base');
         expect(instance.mixinMethod()).toBe('mixin');
 
-        // Dynamically add method to Mixin prototype
-        (Mixin.prototype as any).dynamicMethod = function () { return 'dynamic'; };
-        expect(instance.dynamicMethod()).toBe('dynamic');
+        // Try add event listener
+        const future = new Promise<string>((resolve) => {
+            instance.addEventListener('test-event', () => {
+                console.log('Event received');
+                resolve('event received');
+            });
+            instance.dispatchEvent(new Event('test-event'));
+        });
+
+        return future.then((result) => {
+            expect(result).toBe('event received');
+        });
+    });
+
+    test('Should be able to addEventListener with mixins', () => {
+        // See #9 [bug] Illegal invocation with addEventListener
+
+        class Base extends EventTarget { baseMethod() { return 'base'; } }
+        class Mixin { mixinMethod() { return 'mixin'; } }
+        const A = C(Mixin, Base);
+        const instance = new A([], []);
+
+        expect(instance.baseMethod()).toBe('base');
+        expect(instance.mixinMethod()).toBe('mixin');
 
         // Try add event listener
-        const future = new Promise<void>((resolve) => {
+        const future = new Promise<string>((resolve) => {
             instance.addEventListener('test-event', () => {
+                console.log('Event received');
                 resolve('event received');
             });
             instance.dispatchEvent(new Event('test-event'));

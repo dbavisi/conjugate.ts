@@ -3,54 +3,31 @@
 ** A TypeScript utility for structured, reusable, and type-safe multiple class inheritance.
 */
 
-import {
-    IClass,
-    IResolve,
-    IConjugateBase,
-    OpType,
-} from './typing.js';
+import { IClass, IResolve, OpType } from './typing.js';
 import { ConjugateBase } from './base.js';
 
 /**
  * A TypeScript utility for structured, reusable, and type-safe multiple class inheritance.
- * @template CBase - The base class type.
- * @template CMixins - Tuple of mixin class types.
- * @param Base - The primary base class.
- * @param Mixins - Additional mixin classes.
+ * @param Classes - Array of mixin classes to combine.
+ * @template ITypes - Tuple of instance types.
+ * @template CTypes - Tuple of class types.
  * @returns A new class combining all behaviors.
  */
 function Conjugate<
-    CBase extends IClass<unknown>,
-    T extends unknown[],
-    CMixins extends {
-        [K in keyof T]: IClass<T[K]>;
-    }
+    ITypes extends unknown[],
+    CTypes extends { [K in keyof ITypes]: IClass<ITypes[K]> }
 >(
-    Base: CBase,
-    ...Mixins: CMixins
+    ...Classes: CTypes
 ) {
-    type IArgsBase = ConstructorParameters<CBase>;
-    type IArgsMixins = {
-        [K in keyof T]: ConstructorParameters<CMixins[K]>;
-    };
+    type IArgs = { [K in keyof ITypes]: ConstructorParameters<CTypes[K]> };
 
     class Conjugated extends ConjugateBase {
-        constructor(argsBase: IArgsBase, ...argsMixins: IArgsMixins) {
+        constructor(...args: IArgs) {
             super();
             const self = this;
 
-            // Instantiate base and mixins, save their instances for later use.
-            const base = ConjugateBase.construct(Base, argsBase);
-            const mixins = (Mixins as {
-                [K in keyof T]: CMixins[K];
-            }).map(
-                function <I extends number>(
-                    Mixin: CMixins[I],
-                    index: I,
-                ): InstanceType<CMixins[I]> {
-                    return ConjugateBase.construct(Mixin, argsMixins[index]);
-                }
-            );
+            // Instantiate all mixin classes, save their instances for later use.
+            const instances = Classes.map((Cls, i) => ConjugateBase.construct(Cls, args[i]));
 
             // Helper to resolve property across self, mixins, base, and prototypes
             // Overload signatures for resolveProperty
@@ -94,35 +71,20 @@ function Conjugate<
                 receiver: R,
                 value: TSet
             ) {
-                // Overload checks
                 switch (op) {
-                    case OpType.Has: {
+                    case OpType.Has:
+                    case OpType.Get:
+                    case OpType.Set:
                         if (typeof prop !== 'string' && typeof prop !== 'symbol') {
                             throw new TypeError('Property key must be a string or symbol.');
                         }
-                        break;
-                    }
-                    case OpType.Get: {
-                        if (typeof prop !== 'string' && typeof prop !== 'symbol') {
-                            throw new TypeError('Property key must be a string or symbol.');
+                        if ((op === OpType.Get || op === OpType.Set) && receiver === undefined) {
+                            throw new TypeError('Receiver must be provided for get/set operation.');
                         }
-                        if (receiver === undefined) {
-                            throw new TypeError('Receiver must be provided for get operation.');
-                        }
-                        break;
-                    }
-                    case OpType.Set: {
-                        if (typeof prop !== 'string' && typeof prop !== 'symbol') {
-                            throw new TypeError('Property key must be a string or symbol.');
-                        }
-                        if (receiver === undefined) {
-                            throw new TypeError('Receiver must be provided for set operation.');
-                        }
-                        if (value === undefined) {
+                        if (op === OpType.Set && value === undefined) {
                             throw new TypeError('Value must be provided for set operation.');
                         }
                         break;
-                    }
                 }
 
                 // 1. self
@@ -140,63 +102,33 @@ function Conjugate<
                 }
 
                 // 2. mixin instances (reverse order)
-                for (let i = mixins.length - 1; i >= 0; i -= 1) {
-                    const mixin = mixins[i];
-                    if (ConjugateBase.isObject(mixin) && mixin.hasOwnProperty(prop)) {
+                for (let i = instances.length - 1; i >= 0; i -= 1) {
+                    const inst = instances[i];
+                    if (ConjugateBase.isObject(inst) && inst.hasOwnProperty(prop)) {
                         switch (op) {
                             case OpType.Has:
                                 return true as THas;
                             case OpType.Get: {
-                                const v = ConjugateBase.get(mixin, prop, receiver);
+                                const v = ConjugateBase.get(inst, prop, receiver);
                                 return ConjugateBase.bounded(v, receiver) as TGet;
                             }
                             case OpType.Set:
-                                return ConjugateBase.set(mixin, prop, value, receiver);
+                                return ConjugateBase.set(inst, prop, value, receiver);
                         }
                     }
                 }
 
-                // 3. base instance
-                if (ConjugateBase.isObject(base) && base.hasOwnProperty(prop)) {
-                    switch (op) {
-                        case OpType.Has:
-                            return true as THas;
-                        case OpType.Get: {
-                            const v = ConjugateBase.get(base, prop, receiver);
-                            return ConjugateBase.bounded(v, receiver) as TGet;
-                        }
-                        case OpType.Set:
-                            return ConjugateBase.set(base, prop, value, receiver);
-                    }
-                }
-
-                // 4. Base.prototype
-                if (ConjugateBase.has(Base.prototype, prop)) {
-                    switch (op) {
-                        case OpType.Has:
-                            return true as THas;
-                        case OpType.Get: {
-                            const v = ConjugateBase.get(Base.prototype, prop, receiver);
-                            return ConjugateBase.bounded(v, receiver) as TGet;
-                        }
-                        // case OpType.Set:
-                        // Should we allow altering prototype properties?
-                    }
-                }
-
-                // 5. Mixins.prototype
-                for (let i = 0; i < Mixins.length; i += 1) {
-                    const Mixin = Mixins[i];
-                    if (ConjugateBase.has(Mixin.prototype, prop)) {
+                // 3. mixin prototypes (in order)
+                for (let i = 0; i < Classes.length; i += 1) {
+                    const Proto = Classes[i].prototype;
+                    if (ConjugateBase.has(Proto, prop)) {
                         switch (op) {
                             case OpType.Has:
                                 return true as THas;
                             case OpType.Get: {
-                                const v = ConjugateBase.get(Mixin.prototype, prop, receiver);
-                                return ConjugateBase.bounded(v, receiver) as TGet;
+                                const v = ConjugateBase.get(Proto, prop, receiver);
+                                return ConjugateBase.bounded(v, instances[i]) as TGet;
                             }
-                            // case OpType.Set:
-                            // Should we allow altering prototype properties?
                         }
                     }
                 }
@@ -207,58 +139,40 @@ function Conjugate<
                         return false as THas;
                     case OpType.Get:
                         return undefined;
-                    case OpType.Set: {
-                        /*
-                        ** Design decision: If the property is not found,
-                        ** - We can choose to throw an error,
-                        ** - Or we ignore the set operation.
-                        ** - Or we can allow it to be set on the prototype.
-                        ** - Or we can allow it to be set on the target object.
-                        */
+                    case OpType.Set:
                         return ConjugateBase.set(self, prop, value, receiver);
-                    }
                 }
             }
 
             // Proxy for deterministic property/method resolution.
             return new Proxy(self, {
                 has(target, prop) {
-                    return resolveProperty(OpType.Has, prop, undefined, undefined);
+                    return !!resolveProperty(OpType.Has, prop, undefined, undefined);
                 },
                 get(target, prop, receiver) {
                     return resolveProperty(OpType.Get, prop, receiver, undefined);
                 },
                 set(target, prop, value, receiver) {
-                    return resolveProperty(OpType.Set, prop, receiver, value);
+                    return !!resolveProperty(OpType.Set, prop, receiver, value);
                 },
                 ownKeys(target) {
                     const keys = new Set<string | symbol>();
                     ConjugateBase.ownKeys(self).forEach(k => keys.add(k));
-                    for (let i = mixins.length - 1; i >= 0; i -= 1) {
-                        ConjugateBase.ownKeys(mixins[i]).forEach(k => keys.add(k));
+                    for (let i = instances.length - 1; i >= 0; i -= 1) {
+                        ConjugateBase.ownKeys(instances[i]).forEach(k => keys.add(k));
                     }
-                    ConjugateBase.ownKeys(base).forEach(k => keys.add(k));
                     return Array.from(keys);
                 },
             });
         }
-    } // class Conjugated
+    }
 
     // Diagnostic information for debugging and type inference.
     Object.defineProperty(Conjugated, 'name', {
-        value: `Conjugate<${Base.name}${(
-            (Mixins.length === 0) ? '' : ',' + Mixins.map(m => m.name).join(',')
-        )}>`,
-        writable: false,
-        enumerable: false,
-        configurable: false
+        value: `Conjugate<${Classes.map(c => c.name).join(',')}>`,
     });
 
-    type ConjugatedType = IClass<
-        IResolve<[CBase, ...CMixins]>,
-        [IArgsBase, ...IArgsMixins]
-    >;
-    return Conjugated as unknown as ConjugatedType;
+    return Conjugated as unknown as IClass<IResolve<CTypes>, IArgs>;
 }
 
 export {
