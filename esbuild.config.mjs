@@ -13,9 +13,9 @@ build({
     minifyWhitespace: true,
     minifyIdentifiers: true,
 
-    platform: 'neutral', // Ensures compatibility with both node and browser
-    format: 'esm',       // Output as ES6 module
-    target: ['esnext'],  // Latest JS runtimes
+    platform: 'neutral',
+    format: 'esm',
+    target: ['esnext'],
 
     // Enable source maps for diagnostics
     sourcemap: true,

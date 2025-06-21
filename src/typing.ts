@@ -5,14 +5,14 @@
 
 /**
  * Generic class constructor interface.
- * @template T - The type of the instance created by the class.
+ * @template IType - The type of the instance created by the class.
  * @template IArgs - The types of the constructor arguments.
  */
 interface IClass<
-    T extends unknown,
+    IType extends unknown,
     IArgs extends unknown[] = never[]
 > {
-    new(...args: IArgs): T;
+    new(...args: IArgs): IType;
 }
 
 /**
@@ -20,36 +20,41 @@ interface IClass<
  * @template A - The first type.
  * @template B - The second type.
  */
-type IMix<A extends unknown, B extends unknown> = {
-    [K in keyof (A & B)]: K extends keyof A ? A[K] : (
-        K extends keyof B ? B[K] : never
-    )
-}
-
-/**
- * Recursively expand a type to resolve nested structures.
- * This is useful for type hints during development and debugging.
- * @template T - The type to expand.
- */
-type IExpand<T> = T extends infer O ? {
-    [K in keyof O]: IExpand<O[K]>;
-} : never;
+type IMix<A extends unknown, B extends unknown> =
+    // Properties: Prefer A, else B, else never
+    { [K in keyof (A & B)]: (K extends keyof A
+        ? A[K]
+        : (K extends keyof B
+            ? B[K]
+            : never)) }
+    // Call signature: prefer A, else B, else none
+    & (A extends (...args: infer P) => infer R
+        ? (...args: P) => R
+        : (B extends (...args: infer P) => infer R
+            ? (...args: P) => R
+            : unknown))
+    // Construct signature: prefer A, else B, else none
+    & (A extends new (...args: infer P) => infer R
+        ? new (...args: P) => R
+        : (B extends new (...args: infer P) => infer R
+            ? new (...args: P) => R
+            : unknown));
 
 /**
  * Recursively resolve the combined instance type for a tuple of classes.
- * @template C - The tuple of classes.
+ * @template CTypes - The tuple of classes.
  */
-type IResolve<C extends unknown[]> =
-    C extends [infer CBase, ...infer CRest] ? (
+type IResolve<CTypes extends unknown[]> =
+    CTypes extends [infer CBase, ...infer CRest] ? (
         CBase extends IClass<infer Base> ? (
             CRest extends [infer _CSecond, ...infer _CRest] ? (
-                IExpand<IMix<Base, IResolve<CRest>>>
+                IMix<Base, IResolve<CRest>>
             ) : Base
         ) : never
     ) : null;
 
 /**
- * Interface for the conjugated class, for future extensibility.
+ * Interface for the conjugated type, for future extensibility.
  */
 interface IConjugateBase { }
 
